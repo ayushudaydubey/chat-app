@@ -1,6 +1,7 @@
+// server.js
 import express from 'express';
-import { Server } from 'socket.io';
 import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 
 const app = express();
@@ -12,27 +13,21 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
   }
 });
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"],
-  credentials: true
-}));
+app.use(cors());
 
 app.get("/", (req, res) => {
   res.send("Home Page");
 });
 
-//  Store list of registered usernames
 let registeredUsers = [];
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  //  Register username and broadcast updated user list
   socket.on("register-user", (username) => {
     socket.username = username;
     if (!registeredUsers.includes(username)) {
@@ -42,18 +37,16 @@ io.on("connection", (socket) => {
     io.emit("update-users", registeredUsers);
   });
 
-  //  Private messaging by finding recipient socket
   socket.on("private-message", ({ fromUser, toUser, message }) => {
     for (let [id, sock] of io.of("/").sockets) {
       if (sock.username === toUser) {
-        sock.emit("receive-private", { fromUser, message });
+        sock.emit("receive-private", { fromUser, toUser, message });
         console.log(`Private message from ${fromUser} to ${toUser}: ${message}`);
         break;
       }
     }
   });
 
-  //  Handle disconnection and update user list
   socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.username}`);
     registeredUsers = registeredUsers.filter(user => user !== socket.username);
@@ -62,5 +55,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
